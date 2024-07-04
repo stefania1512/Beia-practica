@@ -1,49 +1,38 @@
-import telegram
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Application, CommandHandler, CallbackContext
 import requests
-
+from typing import Final
+from telegram import Update
 
 # Token-ul de acces pentru botul tău de Telegram
 TOKEN = '6195458589:AAFTULq2Lv9KZDb1DGlZ-OxWflZ8Gtu0ouQ'
+BOT_USERNAME: Final = '@StefIonBot'
 
+# Funcția pentru comanda /start
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text("Salut! Sunt un bot de Telegram! Type /temperature to get the current temperature.")
 
-# Funcție pentru comanda /temperatura
-def temperatura(update, context):
-   # URL-ul pentru a obține datele meteorologice de la OpenWeatherMap
-   url = 'https://api.openweathermap.org/data/2.5/weather '
-   params = {
-       'q': 'Bucharest,ro',  # Schimbă 'Bucharest,ro' cu orașul tău și codul țării
-       'units': 'metric',    # Pentru temperaturi în grade Celsius
-       'appid': 'f80ba330cc9f0b9b8be76410d81ff742'  # Înlocuiește cu cheia API OpenWeatherMap
-   }
+# Funcția pentru comanda /temperature
+async def get_temperature(update: Update, context: CallbackContext) -> None:
+    city = "Bucuresti"
+    url = f"https://wttr.in/{city.replace(' ', '+')}?format=%t"
 
+    # Trimite cererea GET pentru a obține datele meteorologice
+    response = requests.get(url)
 
-   # Trimite cererea GET pentru a obține datele meteorologice
-   response = requests.get(url, params=params)
-   data = response.json()
-
-
-   if data['cod'] == 200:
-       temperatura = data['main']['temp']
-       update.message.reply_text(f'Temperatura în București este {temperatura} °C.')
-   else:
-       update.message.reply_text('Nu am putut obține datele meteorologice momentan.')
-
+    if response.status_code == 200:
+        temperatura = response.text.strip()
+        await update.message.reply_text(f'Temperatura în {city} este {temperatura}')
+    else:
+        await update.message.reply_text('Nu am putut obține datele meteorologice momentan.')
 
 # Funcția principală pentru rularea botului
 def main():
-   updater = Updater(TOKEN, use_context=True)
-   dp = updater.dispatcher
+    app = Application.builder().token(TOKEN).build()
 
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("temperature", get_temperature))
 
-   # Adaugă handler pentru comanda /temperatura
-   dp.add_handler(CommandHandler('temperatura', temperatura))
-
-
-   # Pornirea botului
-   updater.start_polling()
-   updater.idle()
-
+    app.run_polling()
 
 if __name__ == '__main__':
-   main()
+    main()
